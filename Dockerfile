@@ -1,38 +1,29 @@
-FROM litespeedtech/openlitespeed:1.6.18-lsphp74
+FROM johnwcarew/azure-app-service-openlitespeed:latest
 
-#install SSH
-RUN apt-get update; \
-     apt-get install --yes --no-install-recommends openssh-server; \
-     echo "root:Docker!" | chpasswd; \
-     rm -f /etc/ssh/sshd_config
+ENV WORDPRESS_VERSION 5.6
+ENV WORDPRESS_SHA1 db8b75bfc9de27490434b365c12fd805ca6784ce
 
-COPY sshd_config /etc/ssh/
-COPY ssh_setup.sh /etc/ssh/
-RUN chmod -R +x /etc/ssh/ssh_setup.sh; \
-   (sleep 1;. /etc/ssh/ssh_setup.sh 2>&1 > /dev/null); \
-   rm -rf /etc/ssh/ssh_setup.sh
+RUN set -ex; \
+	apt-get update; \
+	apt-get -y install \
+	unzip; \
+	rm -rf /var/lib/apt/lists/*
 
-COPY phpsite.conf /usr/local/lsws/conf/templates/
-COPY httpd_config.conf /usr/local/lsws/conf/
-RUN chown 999:999 /usr/local/lsws/conf -R
+RUN set -ex; \
+	curl -o wordpress.tar.gz -fSL "https://wordpress.org/wordpress-${WORDPRESS_VERSION}.tar.gz"; \
+	echo "$WORDPRESS_SHA1 *wordpress.tar.gz" | sha1sum -c -; \
+# upstream tarballs include ./wordpress/ so this gives us /usr/src/wordpress
+	tar -xzf wordpress.tar.gz -C /usr/src/; \
+	rm wordpress.tar.gz
 
-COPY hostingstart.html /home/site/wwwroot/
-RUN mkdir -p /home/LogFiles; \
-    mkdir -p /home/certs
-RUN chown 1000:1000 /home/site/ -R
+COPY .htaccess /usr/src/wordpress
+RUN chmod -x /usr/src/wordpress/.htaccess; \
+	chown -R 1000:1000 /usr/src/wordpress
 
-RUN ln -sf /dev/stderr /usr/local/lsws/logs/access.log; \
-    ln -sf /dev/stderr /usr/local/lsws/logs/error.log; \
-    ln -sf /dev/stderr /usr/local/lsws/logs/stderr.log
+EXPOSE 2222 80 7080
 
-# VOLUME /home/site/wwwroot
+COPY wordpress-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/wordpress-entrypoint.sh
 
-EXPOSE 2222 80 
-# 7080
-
-ENV WEBSITE_ROLE_INSTANCE_ID localRoleInstance
-ENV WEBSITE_INSTANCE_ID localInstance
-
-WORKDIR /home/site/wwwroot
-
-CMD ["service ssh start"]
+ENTRYPOINT ["wordpress-entrypoint.sh"]
+CMD ["/entrypoint.sh"]
