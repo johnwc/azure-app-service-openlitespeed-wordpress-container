@@ -1,0 +1,79 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "subscriptionId": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "hostingPlanName": {
+      "type": "string"
+    },
+    "serverFarmResourceGroup": {
+      "type": "string"
+    },
+    "wordpressDbHost": {
+      "type": "string"
+    },
+    "wordpressDbName": {
+      "type": "string"
+    },
+    "wordpressDbUser": {
+      "type": "string"
+    },
+    "wordpressDbPassword": {
+      "type": "securestring"
+    }
+  },
+  "resources": [
+    {
+      "apiVersion": "2018-11-01",
+      "name": "[parameters('name')]",
+      "type": "Microsoft.Web/sites",
+      "location": "[parameters('location')]",
+      "tags": {},
+      "dependsOn": [],
+      "properties": {
+        "name": "[parameters('name')]",
+        "siteConfig": {
+          "appSettings": [
+            {
+              "name": "DOCKER_REGISTRY_SERVER_URL",
+              "value": "https://index.docker.io"
+            },
+            {
+              "name": "WEBSITES_ENABLE_APP_SERVICE_STORAGE",
+              "value": "TRUE"
+            },
+            {
+              "name": "WORDPRESS_DB_HOST",
+              "value": "[parameters('wordpressDbHost')]"
+            },
+            {
+              "name": "WORDPRESS_DB_USER",
+              "value": "[parameters('wordpressDbUser')]"
+            },
+            {
+              "name": "WORDPRESS_DB_PASSWORD",
+              "value": "[parameters('wordpressDbPassword')]"
+            },
+            {
+              "name": "WORDPRESS_DB_NAME",
+              "value": "[parameters('wordpressDbName')]"
+            }
+          ],
+          "linuxFxVersion": "DOCKER|johnwcarew/azure-app-service-openlitespeed-wordpress:latest",
+          "appCommandLine": "",
+          "alwaysOn": true
+        },
+        "serverFarmId": "[concat('/subscriptions/', parameters('subscriptionId'),'/resourcegroups/', parameters('serverFarmResourceGroup'), '/providers/Microsoft.Web/serverfarms/', parameters('hostingPlanName'))]",
+        "clientAffinityEnabled": false
+      }
+    }
+  ]
+}

@@ -1,4 +1,18 @@
 #!/bin/bash
+cat >/etc/motd <<EOL 
+   _____                               
+  /  _  \ __________ _________   ____  
+ /  /_\  \\___   /  |  \_  __ \_/ __ \ 
+/    |    \/    /|  |  /|  | \/\  ___/ 
+\____|__  /_____ \____/ |__|    \___  >
+        \/      \/                  \/ 
+A P P   S E R V I C E   O N   L I N U X
+Documentation: http://aka.ms/webapp-linux
+WordPress support: https://wordpress.org/support/
+PHP version : `php -v | head -n 1 | cut -d ' ' -f 2`
+EOL
+cat /etc/motd
+
 set -euo pipefail
 
 # usage: file_env VAR [DEFAULT]
@@ -151,11 +165,12 @@ if [ "$haveConfig" ]; then
 	if [ ! -e wp-config.php ]; then
 		awk '/^\/\*.*stop editing.*\*\/$/ && c == 0 { c = 1; system("cat") } { print }' wp-config-sample.php > wp-config.php <<'EOPHP'
 
+define('DISABLE_WP_CRON', true);
 define('WP_REDIS_HOST', getenv('WP_REDIS_HOST'));
 define('MYSQL_SSL_CA', getenv('MYSQL_SSL_CA'));
 define('MYSQL_CLIENT_FLAGS', MYSQLI_CLIENT_SSL | MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT);
-define('WP_HOME', 'http://'. $_SERVER['HTTP_HOST']);
-define('WP_SITEURL', 'http://'. $_SERVER['HTTP_HOST']);
+#define('WP_HOME', 'http://'. $_SERVER['HTTP_HOST']);
+#define('WP_SITEURL', 'http://'. $_SERVER['HTTP_HOST']);
 define('DOMAIN_CURRENT_SITE', $_SERVER['HTTP_HOST']);
 
 // If we're behind a proxy server and using HTTPS, we need to alert Wordpress of that fact
@@ -166,6 +181,7 @@ $_SERVER['HTTPS'] = 'on';
 
 EOPHP
 		chown "$user:$group" wp-config.php
+		cp wp-config.php wp-config-appsvc-orig.php
 	fi
 
 	# see http://stackoverflow.com/a/2705678/433558
@@ -223,9 +239,12 @@ EOPHP
 
 fi
 
-# now that we're definitely done writing configuration, let's clear out the relevant envrionment variables (so that stray "phpinfo()" calls don't leak secrets from our code)
+# now that we're definitely done writing configuration, let's clear out the relevant environment variables (so that stray "phpinfo()" calls don't leak secrets from our code)
 for e in "${envs[@]}"; do
 	unset "$e"
 done
+
+service ssh start
+service cron start
 
 exec "$@"

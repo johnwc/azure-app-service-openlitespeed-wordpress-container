@@ -1,4 +1,6 @@
-FROM johnwcarew/azure-app-service-openlitespeed:latest
+ARG OLS_VERSION=1.6.18
+ARG PHP_VERSION=lsphp74
+FROM johnwcarew/azure-app-service-openlitespeed-php:$OLS_VERSION-$PHP_VERSION
 
 ENV WORDPRESS_VERSION 5.6
 ENV WORDPRESS_SHA1 db8b75bfc9de27490434b365c12fd805ca6784ce
@@ -22,8 +24,12 @@ RUN chmod -x /usr/src/wordpress/.htaccess; \
 
 EXPOSE 2222 80 7080
 
+COPY wpcron /etc/cron.d/
 COPY wordpress-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/wordpress-entrypoint.sh
+RUN chmod 600 /etc/cron.d/wpcron; \
+	chmod +x /usr/local/bin/wordpress-entrypoint.sh
+
+WORKDIR /home/site/wwwroot
 
 ENTRYPOINT ["wordpress-entrypoint.sh"]
 CMD ["/entrypoint.sh"]
