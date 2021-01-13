@@ -17,9 +17,12 @@ None.
 | [OpenLiteSpeed](https://openlitespeed.org/) | 1.6.18       |
 | [PHP](https://www.php.net/)           | 7.4          |
 | [WordPress](https://wordpress.org/)     | 5.6          |
-| [LiteSpeed Cache](https://wordpress.org/plugins/litespeed-cache/) | 3.6.1      |
+| [LiteSpeed Cache](https://wordpress.org/plugins/litespeed-cache/) | latest-stable |
+| [Google XML Sitemaps](https://wordpress.org/plugins/google-sitemap-generator/) | latest-stable |
 
-SSH has been enabled on port 2222 to be able to SSH to the container in Azure App Service.
+* SSH has been enabled on port 2222 to be able to SSH to the container in Azure App Service.
+* WP-Cron is setup to run via task/cron scheduler every 10 minutes. Set `PHP_CRON` environment variable to a valid [cron formated](https://en.wikipedia.org/wiki/Cron) schedule to change from the default execute interval. Be sure to apply the `define('DISABLE_WP_CRON', true);` setting in wp-config.php, so that WP-Cron does not slowdown your page loads. The last WP-Cron task run is logged to `/home/site/cron.log` 
+  * Run `setup-wp-cron` from SSH shell to copy `cron.sh` to `/home/site` directory, if it does not exist already.
 
 ## Deployment
 
@@ -39,3 +42,4 @@ A sample Azure arm template is available in the [github repo](https://github.com
   * wordpressDbUser
   * wordpressDbPassword
 * After deployment, be sure to configure the [LiteSpeed Cache](https://wordpress.org/plugins/litespeed-cache/) plug-in in WordPress for best performance.
+* Activate the [Google XML Sitemaps](https://wordpress.org/plugins/google-sitemap-generator/) plug-in, and use it as sitemap url in LiteSpeed Cache's crawler options.

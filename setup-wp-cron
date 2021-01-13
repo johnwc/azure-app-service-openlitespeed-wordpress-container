@@ -1,0 +1,5 @@
+#!/bin/bash
+
+cp /usr/src/php/cron.sh /home/site/
+
+echo "A WordPress cron.sh has been copied to /home/site/"

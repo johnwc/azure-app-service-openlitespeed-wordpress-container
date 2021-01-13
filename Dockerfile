@@ -19,14 +19,18 @@ RUN set -ex; \
 	rm wordpress.tar.gz
 
 COPY .htaccess /usr/src/wordpress
+COPY cron.sh /usr/src/php/cron.sh
 RUN chmod -x /usr/src/wordpress/.htaccess; \
+	chmod +x /usr/src/php/cron.sh; \
 	chown -R 1000:1000 /usr/src/wordpress
 
 EXPOSE 2222 80 7080
 
-COPY wpcron /etc/cron.d/
+COPY setup-wp-cron /usr/local/bin/
+COPY wp-container-version /etc
 COPY wordpress-entrypoint.sh /usr/local/bin/
-RUN chmod 600 /etc/cron.d/wpcron; \
+RUN chmod 444 /etc/wp-container-version; \
+	chmod +x /usr/local/bin/setup-wp-cron; \
 	chmod +x /usr/local/bin/wordpress-entrypoint.sh
 
 WORKDIR /home/site/wwwroot

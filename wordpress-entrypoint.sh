@@ -9,7 +9,11 @@ cat >/etc/motd <<EOL
 A P P   S E R V I C E   O N   L I N U X
 Documentation: http://aka.ms/webapp-linux
 WordPress support: https://wordpress.org/support/
+WP Container Version : `cat /etc/wp-container-version`
+PHP Container Version : `cat /etc/php-container-version`
 PHP version : `php -v | head -n 1 | cut -d ' ' -f 2`
+#################################################
+
 EOL
 cat /etc/motd
 
@@ -52,6 +56,8 @@ if ! [ -e index.php -a -e wp-includes/version.php ]; then
 		--directory /usr/src/wordpress \
 		--owner "$user" --group "$group" \
 		. | tar --extract --file -
+	echo >&2 "Copied cron.sh to the parent directory of $PWD"
+	cp /usr/src/php/cron.sh ../
 	echo >&2 "Complete! WordPress has been successfully copied to $PWD"
 fi
 
@@ -64,21 +70,14 @@ fi
 
 # Install Redis Cache WordPress Plugin
 if [ ! -e wp-content/plugins/redis-cache ]; then
+	echo "Downloading https://downloads.wordpress.org/plugin/redis-cache.latest-stable.zip"
+	curl -o redis-cache.zip -fsL "https://downloads.wordpress.org/plugin/redis-cache.latest-stable.zip"
 
-	# Update package repos
-	apt-get update
+	echo "Unzipping redis-cache.zip to wp-content/plugins/"
+	unzip -q redis-cache.zip -d ./wp-content/plugins/
 
-	# Install unzip
-	apt-get install -y unzip
-
-	echo "Downloading https://downloads.wordpress.org/plugin/redis-cache.2.0.17.zip"
-	curl -o redis-cache.2.0.17.zip -fsL "https://downloads.wordpress.org/plugin/redis-cache.2.0.17.zip"
-
-	echo "Unzipping redis-cache.2.0.17.zip to wp-content/plugins/"
-	unzip -q redis-cache.2.0.17.zip -d ./wp-content/plugins/
-
-	echo "Removing redis-cache.2.0.17.zip"
-	rm redis-cache.2.0.17.zip
+	echo "Removing redis-cache.zip"
+	rm redis-cache.zip
 		
 	echo "Changing owner of all files in redis-cache plugin"
 	chown -R "$user:$group" ./wp-content/plugins/redis-cache/
@@ -86,24 +85,32 @@ fi
 
 # Install LiteSpeed Cache WordPress Plugin
 if [ ! -e wp-content/plugins/litespeed-cache ]; then
+	echo "Downloading https://downloads.wordpress.org/plugin/litespeed-cache.latest-stable.zip"
+	curl -o litespeed-cache.zip -fsL "https://downloads.wordpress.org/plugin/litespeed-cache.latest-stable.zip"
 
-	# Update package repos
-	apt-get update
+	echo "Unzipping litespeed-cache.zip to wp-content/plugins/"
+	unzip -q litespeed-cache.zip -d ./wp-content/plugins/
 
-	# Install unzip
-	apt-get install -y unzip
-
-	echo "Downloading https://downloads.wordpress.org/plugin/litespeed-cache.3.6.1.zip"
-	curl -o litespeed-cache.3.6.1.zip -fsL "https://downloads.wordpress.org/plugin/litespeed-cache.3.6.1.zip"
-
-	echo "Unzipping litespeed-cache.3.6.1.zip to wp-content/plugins/"
-	unzip -q litespeed-cache.3.6.1.zip -d ./wp-content/plugins/
-
-	echo "Removing litespeed-cache.3.6.1.zip"
-	rm litespeed-cache.3.6.1.zip
+	echo "Removing litespeed-cache.zip"
+	rm litespeed-cache.zip
 		
 	echo "Changing owner of all files in litespeed-cache plugin"
 	chown -R "$user:$group" ./wp-content/plugins/litespeed-cache/
+fi
+
+# Install Google XML Sitemaps WordPress Plugin
+if [ ! -e wp-content/plugins/google-sitemap-generator ]; then
+	echo "Downloading https://downloads.wordpress.org/plugin/google-sitemap-generator.latest-stable.zip"
+	curl -o google-sitemap-generator.zip -fsL "https://downloads.wordpress.org/plugin/google-sitemap-generator.latest-stable.zip"
+
+	echo "Unzipping google-sitemap-generator.zip to wp-content/plugins/"
+	unzip -q google-sitemap-generator.zip -d ./wp-content/plugins/
+
+	echo "Removing google-sitemap-generator.zip"
+	rm google-sitemap-generator.zip
+		
+	echo "Changing owner of all files in google-sitemap-generator plugin"
+	chown -R "$user:$group" ./wp-content/plugins/google-sitemap-generator/
 fi
 
 # TODO handle WordPress upgrades magically in the same way, but only if wp-includes/version.php's $wp_version is less than /usr/src/wordpress/wp-includes/version.php's $wp_version
@@ -171,7 +178,7 @@ define('MYSQL_SSL_CA', getenv('MYSQL_SSL_CA'));
 define('MYSQL_CLIENT_FLAGS', MYSQLI_CLIENT_SSL | MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT);
 #define('WP_HOME', 'http://'. $_SERVER['HTTP_HOST']);
 #define('WP_SITEURL', 'http://'. $_SERVER['HTTP_HOST']);
-define('DOMAIN_CURRENT_SITE', $_SERVER['HTTP_HOST']);
+#define('DOMAIN_CURRENT_SITE', $_SERVER['HTTP_HOST']);
 
 // If we're behind a proxy server and using HTTPS, we need to alert Wordpress of that fact
 // see also http://codex.wordpress.org/Administration_Over_SSL#Using_a_Reverse_Proxy
@@ -181,7 +188,7 @@ $_SERVER['HTTPS'] = 'on';
 
 EOPHP
 		chown "$user:$group" wp-config.php
-		cp wp-config.php wp-config-appsvc-orig.php
+		cp wp-config.php wp-config-appsvc-sample.php
 	fi
 
 	# see http://stackoverflow.com/a/2705678/433558
@@ -243,6 +250,16 @@ fi
 for e in "${envs[@]}"; do
 	unset "$e"
 done
+
+if [ -z ${PHP_CRON+x} ]; then
+	export PHP_CRON='*/10 * * * *'
+fi
+
+cat >/etc/cron.d/phpcron <<EOL 
+${PHP_CRON} root cd /home/site/; if [ -e cron.sh ]; then /home/site/cron.sh > /home/site/cron.log 2>&1; fi; date > /home/site/cron-last-run
+EOL
+chmod 600 /etc/cron.d/php
+chmod 600 /etc/cron.d/phpcron
 
 service ssh start
 service cron start
