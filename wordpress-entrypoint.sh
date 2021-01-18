@@ -17,6 +17,8 @@ PHP version : `php -v | head -n 1 | cut -d ' ' -f 2`
 EOL
 cat /etc/motd
 
+echo >&2 "Initializing PHP environment..."
+init-php-env
 set -euo pipefail
 
 # usage: file_env VAR [DEFAULT]
@@ -251,15 +253,8 @@ for e in "${envs[@]}"; do
 	unset "$e"
 done
 
-if [ -z ${PHP_CRON+x} ]; then
-	export PHP_CRON='*/10 * * * *'
-fi
-
-cat >/etc/cron.d/phpcron <<EOL 
-${PHP_CRON} root cd /home/site/; if [ -e cron.sh ]; then /home/site/cron.sh > /home/site/cron.log 2>&1; fi; date > /home/site/cron-last-run
-EOL
-chmod 600 /etc/cron.d/php
-chmod 600 /etc/cron.d/phpcron
+# Sync site-local with site
+sync-now &
 
 service ssh start
 service cron start
